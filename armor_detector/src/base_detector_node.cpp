@@ -32,13 +32,14 @@ BaseDetectorNode::BaseDetectorNode(
 
   // Number classifier
   double height_factor = this->declare_parameter("number_classifier.height_factor", 2.0);
-  double width_factor = this->declare_parameter("number_classifier.width_factor", 0.56);
+  double small_width_factor = this->declare_parameter("number_classifier.small_width_factor", 0.56);
+  double large_width_factor = this->declare_parameter("number_classifier.large_width_factor", 0.56);
   double similarity_threshold =
     this->declare_parameter("number_classifier.similarity_threshold", 0.5);
   auto template_path =
     ament_index_cpp::get_package_share_directory("armor_detector") + "/template/";
   classifier_ = std::make_unique<NumberClassifier>(
-    height_factor, width_factor, similarity_threshold, template_path);
+    height_factor, small_width_factor, large_width_factor, similarity_threshold, template_path);
 
   // Subscriptions transport type
   transport_ = this->declare_parameter("subscribe_compressed", false) ? "compressed" : "raw";
@@ -104,7 +105,8 @@ std::unique_ptr<ArmorDetector> BaseDetectorNode::initArmorDetector()
   ArmorDetector::ArmorParams a_params = {
     .min_light_ratio = declare_parameter("armor.min_light_ratio", 0.6),
     .min_center_distance = declare_parameter("armor.min_center_distance", 0.8),
-    .max_center_distance = declare_parameter("armor.max_center_distance", 3.2),
+    .max_center_distance = declare_parameter("armor.max_center_distance", 5.0),
+    .type_threshould = declare_parameter("armor.type_threshould", 3.2),
     .max_angle = declare_parameter("armor.max_angle", 35.0)};
 
   return std::make_unique<ArmorDetector>(min_lightness, detect_color, l_params, a_params);
@@ -126,7 +128,10 @@ std::vector<Armor> BaseDetectorNode::detectArmors(
 
   // Extract numbers
   classifier_->height_factor = get_parameter("number_classifier.height_factor").as_double();
-  classifier_->width_factor = get_parameter("number_classifier.width_factor").as_double();
+  classifier_->small_width_factor =
+    get_parameter("number_classifier.small_width_factor").as_double();
+  classifier_->large_width_factor =
+    get_parameter("number_classifier.large_width_factor").as_double();
   classifier_->similarity_threshold =
     get_parameter("number_classifier.similarity_threshold").as_double();
   cv::Mat xor_img;

@@ -19,6 +19,8 @@ namespace rm_auto_aim
 {
 enum Color { RED = 0, BULE = 1 };
 
+enum ArmorType { SMALL = 0, LARGE = 1 };
+
 struct Light : public cv::RotatedRect
 {
   Light() = default;
@@ -44,6 +46,7 @@ struct Armor
   char number;
   float similarity;
   std::string classfication_result;
+  ArmorType armor_type;
 };
 
 class ArmorDetector
@@ -62,6 +65,7 @@ public:
     double min_light_ratio;
     double min_center_distance;
     double max_center_distance;
+    double type_threshould;
     // horizontal angle
     double max_angle;
   };
@@ -91,7 +95,7 @@ private:
   bool containLight(
     const Light & light_1, const Light & light_2, const std::vector<Light> & lights);
 
-  bool isArmor(const Light & light_1, const Light & light_2);
+  bool isArmor(Armor & armor);
 };
 
 }  // namespace rm_auto_aim

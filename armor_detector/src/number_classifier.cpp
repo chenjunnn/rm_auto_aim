@@ -21,23 +21,33 @@
 #include <string>
 #include <vector>
 
+#include "armor_detector/armor_detector.hpp"
+
 namespace rm_auto_aim
 {
 NumberClassifier::NumberClassifier(
-  const double & hf, const double & wf, const double & ct, const std::string & template_path)
-: height_factor(hf), width_factor(wf), similarity_threshold(ct)
+  const double & hf, const double & swf, const double & lwf, const double & ct,
+  const std::string & template_path)
+: height_factor(hf), small_width_factor(swf), large_width_factor(lwf), similarity_threshold(ct)
 {
-  templates_ = {
+  small_armor_templates_ = {
     {'2', cv::imread(template_path + "2.png", cv::IMREAD_GRAYSCALE)},
     {'3', cv::imread(template_path + "3.png", cv::IMREAD_GRAYSCALE)},
     {'4', cv::imread(template_path + "4.png", cv::IMREAD_GRAYSCALE)},
     {'5', cv::imread(template_path + "5.png", cv::IMREAD_GRAYSCALE)},
+    {'6', cv::imread(template_path + "outpost.png", cv::IMREAD_GRAYSCALE)},
+  };
+  large_armor_templates_ = {
+    {'1', cv::imread(template_path + "1.png", cv::IMREAD_GRAYSCALE)},
+    {'7', cv::imread(template_path + "guard.png", cv::IMREAD_GRAYSCALE)},
+    {'8', cv::imread(template_path + "base.png", cv::IMREAD_GRAYSCALE)},
   };
 }
 
 void NumberClassifier::extractNumbers(const cv::Mat & src, std::vector<Armor> & armors)
 {
   for (auto & armor : armors) {
+    auto width_factor = armor.armor_type == LARGE ? large_width_factor : small_width_factor;
     // Scaling height
     auto left_height_diff = armor.left_light.bottom - armor.left_light.top;
     auto right_height_diff = armor.right_light.bottom - armor.right_light.top;
@@ -64,7 +74,7 @@ void NumberClassifier::extractNumbers(const cv::Mat & src, std::vector<Armor> & 
 
     cv::Point2f number_vertices[4] = {bottom_left, top_left, top_right, bottom_right};
 
-    const auto output_size = cv::Size(20, 28);
+    const auto output_size = armor.armor_type == LARGE ? cv::Size(28, 28) : cv::Size(20, 28);
     cv::Point2f target_vertices[4] = {
       cv::Point(0, output_size.height - 1),
       cv::Point(0, 0),
@@ -87,14 +97,22 @@ void NumberClassifier::extractNumbers(const cv::Mat & src, std::vector<Armor> & 
 
 void NumberClassifier::xorClassify(std::vector<Armor> & armors, cv::Mat & xor_show)
 {
-  double full_mat_sum = 20 * 28 * 255;
+  double full_mat_sum;
+  std::map<char, cv::Mat> templates;
   cv::Mat xor_result;
   std::vector<cv::Mat> all_xor_results;
 
   for (auto & armor : armors) {
+    if (armor.armor_type == SMALL) {
+      full_mat_sum = 20 * 28 * 255;
+      templates = small_armor_templates_;
+    } else {
+      full_mat_sum = 28 * 28 * 255;
+      templates = large_armor_templates_;
+    }
     armor.similarity = 0;
     std::vector<cv::Mat> xor_results;
-    for (const auto & number_template : templates_) {
+    for (const auto & number_template : templates) {
       cv::bitwise_xor(armor.number_img, number_template.second, xor_result);
       xor_results.emplace_back(xor_result.clone());
 

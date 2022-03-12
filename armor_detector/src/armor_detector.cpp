@@ -128,9 +128,9 @@ std::vector<Armor> ArmorDetector::matchLights(const std::vector<Light> & lights)
       if (containLight(*light_1, *light_2, lights)) {
         continue;
       }
-
-      if (isArmor(*light_1, *light_2)) {
-        armors.emplace_back(Armor(*light_1, *light_2));
+      auto armor = Armor(*light_1, *light_2);
+      if (isArmor(armor)) {
+        armors.emplace_back(armor);
       }
     }
   }
@@ -158,8 +158,10 @@ bool ArmorDetector::containLight(
   return false;
 }
 
-bool ArmorDetector::isArmor(const Light & light_1, const Light & light_2)
+bool ArmorDetector::isArmor(Armor & armor)
 {
+  Light light_1 = armor.left_light;
+  Light light_2 = armor.right_light;
   // Ratio of the length of 2 lights (short side / long side)
   float light_length_ratio = light_1.length < light_2.length ? light_1.length / light_2.length
                                                              : light_2.length / light_1.length;
@@ -177,7 +179,7 @@ bool ArmorDetector::isArmor(const Light & light_1, const Light & light_2)
   bool angle_ok = angle < a.max_angle;
 
   bool is_armor = light_ratio_ok && center_distance_ok && angle_ok;
-
+  armor.armor_type = center_distance > a.type_threshould ? LARGE : SMALL;
   // Fill in debug information
   auto_aim_interfaces::msg::DebugArmor armor_data;
   armor_data.center_x = (light_1.center.x + light_2.center.x) / 2;
@@ -185,6 +187,7 @@ bool ArmorDetector::isArmor(const Light & light_1, const Light & light_2)
   armor_data.center_distance = center_distance;
   armor_data.angle = angle;
   armor_data.is_armor = is_armor;
+  armor_data.armor_type = (armor.armor_type == SMALL);
   this->debug_armors.data.emplace_back(armor_data);
 
   return is_armor;
