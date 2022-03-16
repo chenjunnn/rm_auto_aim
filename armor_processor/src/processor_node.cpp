@@ -112,7 +112,12 @@ void ArmorProcessorNode::armorsCallback(
     geometry_msgs::msg::PointStamped ps;
     ps.header = armors_msg->header;
     ps.point = armor.position;
-    armor.position = tf2_buffer_->transform(ps, target_frame_).point;
+    try {
+      armor.position = tf2_buffer_->transform(ps, target_frame_).point;
+    } catch (const tf2::ExtrapolationException & ex) {
+      RCLCPP_ERROR(get_logger(), "Error while transforming %s", ex.what());
+      return;
+    }
   }
 
   rclcpp::Time time = armors_msg->header.stamp;
