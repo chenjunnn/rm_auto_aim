@@ -104,9 +104,10 @@ std::unique_ptr<ArmorDetector> BaseDetectorNode::initArmorDetector()
 
   ArmorDetector::ArmorParams a_params = {
     .min_light_ratio = declare_parameter("armor.min_light_ratio", 0.6),
-    .min_center_distance = declare_parameter("armor.min_center_distance", 0.8),
-    .max_center_distance = declare_parameter("armor.max_center_distance", 5.0),
-    .type_threshould = declare_parameter("armor.type_threshould", 3.2),
+    .min_small_center_distance = declare_parameter("armor.min_small_center_distance", 0.8),
+    .max_small_center_distance = declare_parameter("armor.max_small_center_distance", 2.8),
+    .min_large_center_distance = declare_parameter("armor.min_large_center_distance", 3.2),
+    .max_large_center_distance = declare_parameter("armor.max_large_center_distance", 4.3),
     .max_angle = declare_parameter("armor.max_angle", 35.0)};
 
   return std::make_unique<ArmorDetector>(min_lightness, detect_color, l_params, a_params);

@@ -170,8 +170,10 @@ bool ArmorDetector::isArmor(Armor & armor)
   // Distance between the center of 2 lights (unit : light length)
   float avg_light_length = (light_1.length + light_2.length) / 2;
   float center_distance = cv::norm(light_1.center - light_2.center) / avg_light_length;
-  bool center_distance_ok =
-    a.min_center_distance < center_distance && center_distance < a.max_center_distance;
+  bool center_distance_ok = (a.min_small_center_distance < center_distance &&
+                             center_distance < a.max_small_center_distance) ||
+                            (a.min_large_center_distance < center_distance &&
+                             center_distance < a.max_large_center_distance);
 
   // Angle of light center connection
   cv::Point2f diff = light_1.center - light_2.center;
@@ -179,7 +181,7 @@ bool ArmorDetector::isArmor(Armor & armor)
   bool angle_ok = angle < a.max_angle;
 
   bool is_armor = light_ratio_ok && center_distance_ok && angle_ok;
-  armor.armor_type = center_distance > a.type_threshould ? LARGE : SMALL;
+  armor.armor_type = center_distance > a.min_large_center_distance ? LARGE : SMALL;
   // Fill in debug information
   auto_aim_interfaces::msg::DebugArmor armor_data;
   armor_data.center_x = (light_1.center.x + light_2.center.x) / 2;
