@@ -78,13 +78,19 @@ std::vector<Light> ArmorDetector::findLights(const cv::Mat & rbg_img, const cv::
     auto light = Light(r_rect);
 
     if (isLight(light)) {
-      auto roi_rect = light.boundingRect();
+      auto bounding_rect = light.boundingRect();
       if (
-        0 <= roi_rect.x && 0 <= roi_rect.width && roi_rect.x + roi_rect.width <= rbg_img.cols &&
-        0 <= roi_rect.y && 0 <= roi_rect.height && roi_rect.y + roi_rect.height <= rbg_img.rows) {
-        auto roi = rbg_img(roi_rect);
+        0 <= bounding_rect.x && 0 <= bounding_rect.width &&
+        bounding_rect.x + bounding_rect.width <= rbg_img.cols && 0 <= bounding_rect.y &&
+        0 <= bounding_rect.height && bounding_rect.y + bounding_rect.height <= rbg_img.rows) {
+        int sum_b = 0;
+        int sum_r = 0;
+        for (auto & point : contour) {
+          sum_r += rbg_img.at<cv::Vec3b>(point.y, point.x)[0];
+          sum_b += rbg_img.at<cv::Vec3b>(point.y, point.x)[2];
+        }
         // Sum of red pixels > sum of blue pixels ?
-        light.color = cv::sum(roi)[0] > cv::sum(roi)[2] ? Color::RED : Color::BULE;
+        light.color = sum_r > sum_b ? Color::RED : Color::BULE;
         lights.emplace_back(light);
       }
     }
