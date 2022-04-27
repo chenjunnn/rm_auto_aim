@@ -24,11 +24,27 @@
 参数：
 - 跟踪器参数 tracker
   - 两帧间目标可匹配的最大距离 max_match_distance
-  - `detecting` 状态进入 `tracking` 状态的阈值 tracking_threshold
-  - `tracking` 状态进入 `no_found` 状态的阈值 lost_threshold
+  - `DETECTING` 状态进入 `TRACKING` 状态的阈值 tracking_threshold
+  - `TRACKING` 状态进入 `NO_FOUND` 状态的阈值 lost_threshold
 
 ## Tracker
 跟踪器
+
+跟踪器共有四个状态：
+- `NO_FOUND` 目标未识别：跟踪器完全丢失目标
+- `DETECTING` 目标识别中：短暂识别到目标，需要更多帧识别信息才能进入跟踪状态
+- `TRACKING` 目标跟踪中：跟踪器正常跟踪目标中
+- `LOST` 目标丢失：跟踪器短暂丢失目标，通过卡尔曼滤波器预测目标
+
+工作流程：
+
+- 初始化：
+
+  跟踪器默认选择离相机光心最近的目标作为跟踪对象，这种方式比较贴近FPS游戏中辅助瞄准的手感。选择目标后初始化卡尔曼滤波器，初始状态设为当前目标位置，速度都设为0
+
+- 更新:
+
+  首先由跟踪目标的卡尔曼滤波器得到目标在当前帧的预测位置，然后遍历当前帧中的识别目标对预测位置进行匹配，若未识别到目标或所有目标与预测位置的偏差都过大则认为目标丢失。最后选取位置相差最小的目标作为最佳匹配项，更新卡尔曼滤波器，将更新后的状态作为跟踪器的结果输出。
 
 包含[KalmanFilter](#kalmanfilter)
 
