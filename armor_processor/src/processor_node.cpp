@@ -93,7 +93,7 @@ ArmorProcessorNode::ArmorProcessorNode(const rclcpp::NodeOptions & options)
   position_marker_.color.a = 1.0;
   position_marker_.color.g = 1.0;
   velocity_marker_.type = visualization_msgs::msg::Marker::ARROW;
-  position_marker_.ns = "velocity";
+  velocity_marker_.ns = "velocity";
   velocity_marker_.scale.x = 0.03;
   velocity_marker_.scale.y = 0.05;
   velocity_marker_.color.a = 1.0;
