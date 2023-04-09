@@ -1,31 +1,31 @@
-name: Build and Test (humble)
+name: Build and Test (galactic)
 on:
   push:
-    branches: [ main ]
+    branches: [ galactic ]
   pull_request:
-    branches: [ main ]
+    branches: [ galactic ]
 jobs:
   build-and-test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Setup ROS 2
         uses: ros-tooling/setup-ros@v0.4
         with:
-          required-ros-distributions: humble
+          required-ros-distributions: galactic
       - name: Build rm_auto_aim
         uses: ros-tooling/action-ros-ci@v0.2
         with:
           package-name: auto_aim_bringup
           import-token: ${{ secrets.GITHUB_TOKEN }}
-          target-ros2-distro: humble
+          target-ros2-distro: galactic
           skip-tests: true
       - name: Test armor_detector
         run: |
-          source /opt/ros/humble/setup.sh
+          source /opt/ros/galactic/setup.sh
           cd ros_ws
           colcon test --packages-select armor_detector --event-handlers console_cohesion+ --return-code-on-test-failure
       - name: Test armor_processor
         run: |
-          source /opt/ros/humble/setup.sh
+          source /opt/ros/galactic/setup.sh
           cd ros_ws
           colcon test --packages-select armor_processor --event-handlers console_cohesion+ --return-code-on-test-failure
