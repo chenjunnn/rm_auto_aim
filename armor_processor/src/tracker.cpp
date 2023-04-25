@@ -161,9 +161,9 @@ void Tracker::handleArmorJump(const Armor & a)
 {
   double last_yaw = target_state(3);
   double yaw = orientationToYaw(a.pose.orientation);
-
+  bool is_balancing_infantry = (a.armor_type == 1) && (a.number == "3" || a.number == "4" || a.number == "5");
   if (abs(yaw - last_yaw) > 0.4) {
-    if (a.armor_type == 0) {
+    if (!is_balancing_infantry) {
       last_z = target_state(2);
       std::swap(target_state(8), last_r);
     }
