@@ -51,6 +51,9 @@ public:
   // To store armor type
   uint8_t armor_type;
 
+  // To store armor number
+  std::string number;
+
 private:
   void initEKF(const Armor & a);
 

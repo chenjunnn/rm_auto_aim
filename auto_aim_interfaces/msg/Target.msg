@@ -9,3 +9,4 @@ float64 radius_1
 float64 radius_2
 float64 z_2
 uint8 armor_type
+string number
