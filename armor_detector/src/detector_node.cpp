@@ -106,6 +106,8 @@ void ArmorDetectorNode::imageCallback(const sensor_msgs::msg::Image::ConstShared
       bool success = pnp_solver_->solvePnP(armor, rvec, tvec);
       if (success) {
         armor_msg.number = armor.number;
+        // Fill armor type
+        armor_msg.armor_type = armor.armor_type;
         // Fill armor_msg with pose
         armor_msg.pose.position.x = tvec.at<double>(0);
         armor_msg.pose.position.y = tvec.at<double>(1);

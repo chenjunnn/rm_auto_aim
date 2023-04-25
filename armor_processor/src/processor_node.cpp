@@ -169,9 +169,11 @@ void ArmorProcessorNode::armorsCallback(
 
     if (tracker_->tracker_state == Tracker::DETECTING) {
       target_msg.tracking = false;
-    } else if (
-      tracker_->tracker_state == Tracker::TRACKING ||
-      tracker_->tracker_state == Tracker::TEMP_LOST) {
+    } else if (tracker_->tracker_state == Tracker::TRACKING) {
+      target_msg.tracking = true;
+      target_msg.id = tracker_->tracked_id;
+      tracker_->armor_type = armors_msg->armors[0].armor_type;
+    } else if (tracker_->tracker_state == Tracker::TEMP_LOST) {
       target_msg.tracking = true;
       target_msg.id = tracker_->tracked_id;
     }
@@ -191,6 +193,7 @@ void ArmorProcessorNode::armorsCallback(
   target_msg.radius_1 = state(8);
   target_msg.radius_2 = tracker_->last_r;
   target_msg.z_2 = tracker_->last_z;
+  target_msg.armor_type = tracker_->armor_type;
   target_pub_->publish(target_msg);
 
   publishMarkers(target_msg);
@@ -208,10 +211,11 @@ void ArmorProcessorNode::publishMarkers(const auto_aim_interfaces::msg::Target &
     double yaw = target_msg.yaw, r1 = target_msg.radius_1, r2 = target_msg.radius_2;
     double xc = target_msg.position.x, yc = target_msg.position.y, zc = target_msg.position.z;
     double z2 = target_msg.z_2;
+    uint8_t armor_type = target_msg.armor_type;
     position_marker_.action = visualization_msgs::msg::Marker::ADD;
     position_marker_.pose.position.x = xc;
     position_marker_.pose.position.y = yc;
-    position_marker_.pose.position.z = (zc + z2) / 2;
+    position_marker_.pose.position.z = armor_type == 0 ? (zc + z2) / 2 : zc;
 
     linear_v_marker_.action = visualization_msgs::msg::Marker::ADD;
     linear_v_marker_.points.clear();
@@ -232,15 +236,26 @@ void ArmorProcessorNode::publishMarkers(const auto_aim_interfaces::msg::Target &
     armors_marker_.action = visualization_msgs::msg::Marker::ADD;
     armors_marker_.points.clear();
     geometry_msgs::msg::Point p_a;
-    bool use_1 = true;
-    for (size_t i = 0; i < 4; i++) {
-      double tmp_yaw = yaw + i * M_PI_2;
-      double r = use_1 ? r1 : r2;
-      p_a.x = xc - r * cos(tmp_yaw);
-      p_a.y = yc - r * sin(tmp_yaw);
-      p_a.z = use_1 ? zc : z2;
-      armors_marker_.points.emplace_back(p_a);
-      use_1 = !use_1;
+    if (armor_type == 0) {
+      bool use_1 = true;
+      for (size_t i = 0; i < 4; i++) {
+        double tmp_yaw = yaw + i * M_PI_2;
+        double r = use_1 ? r1 : r2;
+        p_a.x = xc - r * cos(tmp_yaw);
+        p_a.y = yc - r * sin(tmp_yaw);
+        p_a.z = use_1 ? zc : z2;
+        armors_marker_.points.emplace_back(p_a);
+        use_1 = !use_1;
+      }
+    } else if (armor_type == 1) {
+      for (size_t i = 0; i < 2; i++) {
+        double tmp_yaw = yaw + i * M_PI;
+        double r = r1;
+        p_a.x = xc - r * cos(tmp_yaw);
+        p_a.y = yc - r * sin(tmp_yaw);
+        p_a.z = zc;
+        armors_marker_.points.emplace_back(p_a);
+      }
     }
   } else {
     position_marker_.action = visualization_msgs::msg::Marker::DELETE;

@@ -48,6 +48,9 @@ public:
   // To store another pair of armors message
   double last_z, last_r;
 
+  // To store armor type
+  uint8_t armor_type;
+
 private:
   void initEKF(const Armor & a);
 
