@@ -15,17 +15,20 @@
 #include <memory>
 #include <string>
 
-namespace rm_auto_aim {
-Tracker::Tracker(double max_match_distance, int tracking_threshold,
-                 int lost_threshold)
-    : tracker_state(LOST),
-      tracked_id(std::string("")),
-      target_state(Eigen::VectorXd::Zero(9)),
-      max_match_distance_(max_match_distance),
-      tracking_threshold_(tracking_threshold),
-      lost_threshold_(lost_threshold) {}
+namespace rm_auto_aim
+{
+Tracker::Tracker(double max_match_distance, int tracking_threshold, int lost_threshold)
+: tracker_state(LOST),
+  tracked_id(std::string("")),
+  target_state(Eigen::VectorXd::Zero(9)),
+  max_match_distance_(max_match_distance),
+  tracking_threshold_(tracking_threshold),
+  lost_threshold_(lost_threshold)
+{
+}
 
-void Tracker::init(const Armors::SharedPtr& armors_msg) {
+void Tracker::init(const Armors::SharedPtr & armors_msg)
+{
   if (armors_msg->armors.empty()) {
     return;
   }
@@ -33,7 +36,7 @@ void Tracker::init(const Armors::SharedPtr& armors_msg) {
   // Simply choose the armor that is closest to image center
   double min_distance = DBL_MAX;
   tracked_armor = armors_msg->armors[0];
-  for (const auto& armor : armors_msg->armors) {
+  for (const auto & armor : armors_msg->armors) {
     if (armor.distance_to_image_center < min_distance) {
       min_distance = armor.distance_to_image_center;
       tracked_armor = armor;
@@ -46,7 +49,8 @@ void Tracker::init(const Armors::SharedPtr& armors_msg) {
   tracker_state = DETECTING;
 }
 
-void Tracker::update(const Armors::SharedPtr& armors_msg) {
+void Tracker::update(const Armors::SharedPtr & armors_msg)
+{
   // KF predict
   Eigen::VectorXd ekf_prediction = ekf.predict();
   RCLCPP_DEBUG(rclcpp::get_logger("armor_processor"), "EKF predict");
@@ -58,7 +62,7 @@ void Tracker::update(const Armors::SharedPtr& armors_msg) {
   if (!armors_msg->armors.empty()) {
     double min_position_diff = DBL_MAX;
     auto predicted_position = getArmorPositionFromState(ekf_prediction);
-    for (const auto& armor : armors_msg->armors) {
+    for (const auto & armor : armors_msg->armors) {
       auto p = armor.pose.position;
       Eigen::Vector3d position_vec(p.x, p.y, p.z);
       // Difference of the current armor position and tracked armor's predicted
@@ -81,7 +85,7 @@ void Tracker::update(const Armors::SharedPtr& armors_msg) {
       RCLCPP_DEBUG(rclcpp::get_logger("armor_processor"), "EKF update");
     } else {
       // Check if there is same id armor in current frame
-      for (const auto& armor : armors_msg->armors) {
+      for (const auto & armor : armors_msg->armors) {
         if (armor.number == tracked_id) {
           // Armor jump happens
           matched = true;
@@ -133,7 +137,8 @@ void Tracker::update(const Armors::SharedPtr& armors_msg) {
   }
 }
 
-void Tracker::initEKF(const Armor& a) {
+void Tracker::initEKF(const Armor & a)
+{
   double xa = a.pose.position.x;
   double ya = a.pose.position.y;
   double za = a.pose.position.z;
@@ -153,12 +158,12 @@ void Tracker::initEKF(const Armor& a) {
   RCLCPP_DEBUG(rclcpp::get_logger("armor_processor"), "Init EKF!");
 }
 
-void Tracker::handleArmorJump(const Armor& a) {
+void Tracker::handleArmorJump(const Armor & a)
+{
   double last_yaw = target_state(3);
   double yaw = orientationToYaw(a.pose.orientation);
   bool is_balancing_infantry =
-      (a.armor_type == 1) &&
-      (a.number == "3" || a.number == "4" || a.number == "5");
+    (a.armor_type == 1) && (a.number == "3" || a.number == "4" || a.number == "5");
   if (abs(yaw - last_yaw) > 0.4) {
     if (!is_balancing_infantry) {
       last_z = target_state(2);
@@ -186,7 +191,8 @@ void Tracker::handleArmorJump(const Armor& a) {
   ekf.setState(target_state);
 }
 
-double Tracker::orientationToYaw(const geometry_msgs::msg::Quaternion& q) {
+double Tracker::orientationToYaw(const geometry_msgs::msg::Quaternion & q)
+{
   // Get armor yaw
   tf2::Quaternion tf_q;
   tf2::fromMsg(q, tf_q);
@@ -198,7 +204,8 @@ double Tracker::orientationToYaw(const geometry_msgs::msg::Quaternion& q) {
   return yaw;
 }
 
-Eigen::Vector3d Tracker::getArmorPositionFromState(const Eigen::VectorXd& x) {
+Eigen::Vector3d Tracker::getArmorPositionFromState(const Eigen::VectorXd & x)
+{
   // Calculate predicted position of the current armor
   double xc = x(0), yc = x(1), zc = x(2);
   double yaw = x(3), r = x(8);
