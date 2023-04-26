@@ -5,25 +5,26 @@
 #include <memory>
 #include <vector>
 
-namespace rm_auto_aim
-{
-ArmorProcessorNode::ArmorProcessorNode(const rclcpp::NodeOptions & options)
-: Node("armor_processor", options), last_time_(0), dt_(0.0)
-{
+namespace rm_auto_aim {
+ArmorProcessorNode::ArmorProcessorNode(const rclcpp::NodeOptions &options)
+    : Node("armor_processor", options), last_time_(0), dt_(0.0) {
   RCLCPP_INFO(this->get_logger(), "Starting ProcessorNode!");
 
   // Tracker
-  double max_match_distance = this->declare_parameter("tracker.max_match_distance", 0.2);
-  int tracking_threshold = this->declare_parameter("tracker.tracking_threshold", 5);
+  double max_match_distance =
+      this->declare_parameter("tracker.max_match_distance", 0.2);
+  int tracking_threshold =
+      this->declare_parameter("tracker.tracking_threshold", 5);
   int lost_threshold = this->declare_parameter("tracker.lost_threshold", 5);
-  tracker_ = std::make_unique<Tracker>(max_match_distance, tracking_threshold, lost_threshold);
+  tracker_ = std::make_unique<Tracker>(max_match_distance, tracking_threshold,
+                                       lost_threshold);
 
   // EKF
   // xa = x_armor, xc = x_robot_center
   // state: xc, yc, zc, yaw, v_xc, v_yc, v_zc, v_yaw, r
   // measurement: xa, ya, za, yaw
   // f - Process function
-  auto f = [this](const Eigen::VectorXd & x) {
+  auto f = [this](const Eigen::VectorXd &x) {
     Eigen::VectorXd x_new = x;
     x_new(0) += x(4) * dt_;
     x_new(1) += x(5) * dt_;
@@ -48,7 +49,7 @@ ArmorProcessorNode::ArmorProcessorNode(const rclcpp::NodeOptions & options)
     return f;
   };
   // h - Observation function
-  auto h = [](const Eigen::VectorXd & x) {
+  auto h = [](const Eigen::VectorXd &x) {
     Eigen::VectorXd z(4);
     double xc = x(0), yc = x(1), yaw = x(3), r = x(8);
     z(0) = xc - r * cos(yaw);  // xa
@@ -58,7 +59,7 @@ ArmorProcessorNode::ArmorProcessorNode(const rclcpp::NodeOptions & options)
     return z;
   };
   // J_h - Jacobian of observation function
-  auto j_h = [](const Eigen::VectorXd & x) {
+  auto j_h = [](const Eigen::VectorXd &x) {
     Eigen::MatrixXd h(4, 9);
     double yaw = x(3), r = x(8);
     // clang-format off
@@ -72,14 +73,16 @@ ArmorProcessorNode::ArmorProcessorNode(const rclcpp::NodeOptions & options)
   };
   // Q - process noise covariance matrix
   auto q_v = this->declare_parameter(
-    "kf.q", std::vector<double>{//xc  yc    zc    yaw   vxc   vyc   vzc   vyaw  r
-                                1e-2, 1e-2, 1e-2, 2e-2, 5e-2, 5e-2, 1e-4, 4e-2, 1e-3});
+      "kf.q", std::vector<double>{
+                  // xc  yc    zc    yaw   vxc   vyc   vzc   vyaw  r
+                  1e-2, 1e-2, 1e-2, 2e-2, 5e-2, 5e-2, 1e-4, 4e-2, 1e-3});
   Eigen::DiagonalMatrix<double, 9> q;
-  q.diagonal() << q_v[0], q_v[1], q_v[2], q_v[3], q_v[4], q_v[5], q_v[6], q_v[7], q_v[8];
+  q.diagonal() << q_v[0], q_v[1], q_v[2], q_v[3], q_v[4], q_v[5], q_v[6],
+      q_v[7], q_v[8];
   // R - measurement noise covariance matrix
   auto r_v = this->declare_parameter(
-    "kf.r", std::vector<double>{//xa  ya    za    yaw
-                                1e-1, 1e-1, 1e-1, 2e-1});
+      "kf.r", std::vector<double>{// xa  ya    za    yaw
+                                  1e-1, 1e-1, 1e-1, 2e-1});
   Eigen::DiagonalMatrix<double, 4> r;
   r.diagonal() << r_v[0], r_v[1], r_v[2], r_v[3];
   // P - error estimate covariance matrix
@@ -93,27 +96,30 @@ ArmorProcessorNode::ArmorProcessorNode(const rclcpp::NodeOptions & options)
   // Create the timer interface before call to waitForTransform,
   // to avoid a tf2_ros::CreateTimerInterfaceException exception
   auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
-    this->get_node_base_interface(), this->get_node_timers_interface());
+      this->get_node_base_interface(), this->get_node_timers_interface());
   tf2_buffer_->setCreateTimerInterface(timer_interface);
   tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
   // subscriber and filter
   armors_sub_.subscribe(this, "/detector/armors", rmw_qos_profile_sensor_data);
   target_frame_ = this->declare_parameter("target_frame", "odom");
   tf2_filter_ = std::make_shared<tf2_filter>(
-    armors_sub_, *tf2_buffer_, target_frame_, 10, this->get_node_logging_interface(),
-    this->get_node_clock_interface(), std::chrono::duration<int>(1));
-  // Register a callback with tf2_ros::MessageFilter to be called when transforms are available
+      armors_sub_, *tf2_buffer_, target_frame_, 10,
+      this->get_node_logging_interface(), this->get_node_clock_interface(),
+      std::chrono::duration<int>(1));
+  // Register a callback with tf2_ros::MessageFilter to be called when
+  // transforms are available
   tf2_filter_->registerCallback(&ArmorProcessorNode::armorsCallback, this);
 
   // Publisher
   target_pub_ = this->create_publisher<auto_aim_interfaces::msg::Target>(
-    "/processor/target", rclcpp::SensorDataQoS());
+      "/processor/target", rclcpp::SensorDataQoS());
 
   // Visualization Marker Publisher
   // See http://wiki.ros.org/rviz/DisplayTypes/Marker
   position_marker_.ns = "position";
   position_marker_.type = visualization_msgs::msg::Marker::SPHERE;
-  position_marker_.scale.x = position_marker_.scale.y = position_marker_.scale.z = 0.1;
+  position_marker_.scale.x = position_marker_.scale.y =
+      position_marker_.scale.z = 0.1;
   position_marker_.color.a = 1.0;
   position_marker_.color.g = 1.0;
   linear_v_marker_.type = visualization_msgs::msg::Marker::ARROW;
@@ -132,24 +138,24 @@ ArmorProcessorNode::ArmorProcessorNode(const rclcpp::NodeOptions & options)
   angular_v_marker_.color.g = 1.0;
   armors_marker_.ns = "armors";
   armors_marker_.type = visualization_msgs::msg::Marker::SPHERE_LIST;
-  armors_marker_.scale.x = armors_marker_.scale.y = armors_marker_.scale.z = 0.1;
+  armors_marker_.scale.x = armors_marker_.scale.y = armors_marker_.scale.z =
+      0.1;
   armors_marker_.color.a = 1.0;
   armors_marker_.color.r = 1.0;
-  marker_pub_ =
-    this->create_publisher<visualization_msgs::msg::MarkerArray>("/processor/marker", 10);
+  marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
+      "/processor/marker", 10);
 }
 
 void ArmorProcessorNode::armorsCallback(
-  const auto_aim_interfaces::msg::Armors::SharedPtr armors_msg)
-{
+    const auto_aim_interfaces::msg::Armors::SharedPtr armors_msg) {
   // Tranform armor position from image frame to world coordinate
-  for (auto & armor : armors_msg->armors) {
+  for (auto &armor : armors_msg->armors) {
     geometry_msgs::msg::PoseStamped ps;
     ps.header = armors_msg->header;
     ps.pose = armor.pose;
     try {
       armor.pose = tf2_buffer_->transform(ps, target_frame_).pose;
-    } catch (const tf2::ExtrapolationException & ex) {
+    } catch (const tf2::ExtrapolationException &ex) {
       RCLCPP_ERROR(get_logger(), "Error while transforming %s", ex.what());
       return;
     }
@@ -166,7 +172,7 @@ void ArmorProcessorNode::armorsCallback(
   } else {
     dt_ = (time - last_time_).seconds();
     tracker_->update(armors_msg);
-    
+
     if (tracker_->tracker_state == Tracker::DETECTING) {
       target_msg.tracking = false;
     } else if (tracker_->tracker_state == Tracker::TRACKING) {
@@ -201,8 +207,8 @@ void ArmorProcessorNode::armorsCallback(
   publishMarkers(target_msg);
 }
 
-void ArmorProcessorNode::publishMarkers(const auto_aim_interfaces::msg::Target & target_msg)
-{
+void ArmorProcessorNode::publishMarkers(
+    const auto_aim_interfaces::msg::Target &target_msg) {
   position_marker_.header = target_msg.header;
   linear_v_marker_.header = target_msg.header;
   angular_v_marker_.header = target_msg.header;
@@ -210,16 +216,20 @@ void ArmorProcessorNode::publishMarkers(const auto_aim_interfaces::msg::Target &
 
   if (target_msg.tracking) {
     auto state = tracker_->target_state;
-    double yaw = target_msg.yaw, r1 = target_msg.radius_1, r2 = target_msg.radius_2;
-    double xc = target_msg.position.x, yc = target_msg.position.y, zc = target_msg.position.z;
+    double yaw = target_msg.yaw, r1 = target_msg.radius_1,
+           r2 = target_msg.radius_2;
+    double xc = target_msg.position.x, yc = target_msg.position.y,
+           zc = target_msg.position.z;
     double z2 = target_msg.z_2;
     uint8_t armor_type = target_msg.armor_type;
     std::string number = target_msg.number;
-    bool is_balancing_infantry = (armor_type == 1) && (number == "3" || number == "4" || number == "5");
+    bool is_balancing_infantry =
+        (armor_type == 1) && (number == "3" || number == "4" || number == "5");
     position_marker_.action = visualization_msgs::msg::Marker::ADD;
     position_marker_.pose.position.x = xc;
     position_marker_.pose.position.y = yc;
-    position_marker_.pose.position.z = is_balancing_infantry ? zc : (zc + z2) / 2;
+    position_marker_.pose.position.z =
+        is_balancing_infantry ? zc : (zc + z2) / 2;
 
     linear_v_marker_.action = visualization_msgs::msg::Marker::ADD;
     linear_v_marker_.points.clear();
@@ -282,6 +292,6 @@ void ArmorProcessorNode::publishMarkers(const auto_aim_interfaces::msg::Target &
 #include "rclcpp_components/register_node_macro.hpp"
 
 // Register the component with class_loader.
-// This acts as a sort of entry point, allowing the component to be discoverable when its library
-// is being loaded into a running process.
+// This acts as a sort of entry point, allowing the component to be discoverable
+// when its library is being loaded into a running process.
 RCLCPP_COMPONENTS_REGISTER_NODE(rm_auto_aim::ArmorProcessorNode)
