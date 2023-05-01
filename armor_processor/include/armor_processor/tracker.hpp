@@ -20,6 +20,8 @@
 
 namespace rm_auto_aim
 {
+enum TargetType { NORMAL, BALANCE, OUTPOST };
+enum ArmorType { SMALL, LARGE };
 class Tracker
 {
 public:

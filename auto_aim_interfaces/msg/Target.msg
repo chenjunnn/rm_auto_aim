@@ -1,3 +1,7 @@
+uint8 NORMAL = 0
+uint8 BALANCE = 1
+uint8 OUTPOST = 2
+
 std_msgs/Header header
 string id
 bool tracking
@@ -8,5 +12,4 @@ float64 v_yaw
 float64 radius_1
 float64 radius_2
 float64 z_2
-uint8 armor_type
-string number
+uint8 target_type

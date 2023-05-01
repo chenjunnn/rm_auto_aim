@@ -101,40 +101,43 @@ void Tracker::update(const Armors::SharedPtr & armors_msg)
   if (target_state(8) < 0.2) {
     target_state(8) = 0.2;
     ekf.setState(target_state);
-  } else if (target_state(8) > 0.4) {
+  } else if (armors_msg->armors[0].number != "Outpost" && target_state(8) > 0.4) {
     target_state(8) = 0.4;
+    ekf.setState(target_state);
+  } else if (armors_msg->armors[0].number == "Outpost" && target_state(8) > 0.6) {
+    target_state(8) = 0.6;
     ekf.setState(target_state);
   }
 
-  // Tracking state machine
-  if (tracker_state == DETECTING) {
-    if (matched) {
-      detect_count_++;
-      if (detect_count_ > tracking_threshold_) {
+    // Tracking state machine
+    if (tracker_state == DETECTING) {
+      if (matched) {
+        detect_count_++;
+        if (detect_count_ > tracking_threshold_) {
+          detect_count_ = 0;
+          tracker_state = TRACKING;
+        }
+      } else {
         detect_count_ = 0;
-        tracker_state = TRACKING;
-      }
-    } else {
-      detect_count_ = 0;
-      tracker_state = LOST;
-    }
-  } else if (tracker_state == TRACKING) {
-    if (!matched) {
-      tracker_state = TEMP_LOST;
-      lost_count_++;
-    }
-  } else if (tracker_state == TEMP_LOST) {
-    if (!matched) {
-      lost_count_++;
-      if (lost_count_ > lost_threshold_) {
-        lost_count_ = 0;
         tracker_state = LOST;
       }
-    } else {
-      tracker_state = TRACKING;
-      lost_count_ = 0;
+    } else if (tracker_state == TRACKING) {
+      if (!matched) {
+        tracker_state = TEMP_LOST;
+        lost_count_++;
+      }
+    } else if (tracker_state == TEMP_LOST) {
+      if (!matched) {
+        lost_count_++;
+        if (lost_count_ > lost_threshold_) {
+          lost_count_ = 0;
+          tracker_state = LOST;
+        }
+      } else {
+        tracker_state = TRACKING;
+        lost_count_ = 0;
+      }
     }
-  }
 }
 
 void Tracker::initEKF(const Armor & a)
@@ -162,10 +165,11 @@ void Tracker::handleArmorJump(const Armor & a)
 {
   double last_yaw = target_state(3);
   double yaw = orientationToYaw(a.pose.orientation);
-  bool is_balancing_infantry =
-    (a.armor_type == 1) && (a.number == "3" || a.number == "4" || a.number == "5");
+  bool equal_height =
+    ((a.armor_type == LARGE) && (a.number == "3" || a.number == "4" || a.number == "5")) ||
+    a.number == "Outpost";
   if (abs(yaw - last_yaw) > 0.4) {
-    if (!is_balancing_infantry) {
+    if (!equal_height) {
       last_z = target_state(2);
       std::swap(target_state(8), last_r);
     }
