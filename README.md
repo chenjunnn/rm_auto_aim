@@ -4,9 +4,11 @@
 
 RoboMaster 装甲板自瞄算法模块
 
-若有帮助请Star这个项目，感谢~
+<img src="docs/rm_vision.svg" alt="rm_vision" width="200" height="200">
 
-<!-- ![](armor_detector/docs/result.png) -->
+该项目为 [rm_vision](https://github.com/chenjunnn/rm_vision) 的子模块
+
+若有帮助请Star这个项目，感谢~
 
 ### License
 
