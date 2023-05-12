@@ -221,7 +221,7 @@ bool Detector::isArmor(Armor & armor)
   bool angle_ok = angle < a.max_angle;
 
   bool is_armor = light_ratio_ok && center_distance_ok && angle_ok;
-  armor.armor_type = center_distance > a.min_large_center_distance ? LARGE : SMALL;
+  armor.armor_type = center_distance > a.min_large_center_distance ? "Large" : "Small";
   // Fill in debug information
   auto_aim_interfaces::msg::DebugArmor armor_data;
   armor_data.center_x = (light_1.center.x + light_2.center.x) / 2;
@@ -229,7 +229,7 @@ bool Detector::isArmor(Armor & armor)
   armor_data.center_distance = center_distance;
   armor_data.angle = angle;
   armor_data.is_armor = is_armor;
-  armor_data.armor_type = armor.armor_type == LARGE ? "large" : "small";
+  armor_data.armor_type = armor.armor_type;
   this->debug_armors.data.emplace_back(armor_data);
 
   return is_armor;

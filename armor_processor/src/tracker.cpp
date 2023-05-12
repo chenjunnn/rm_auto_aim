@@ -47,6 +47,7 @@ void Tracker::init(const Armors::SharedPtr & armors_msg)
 
   tracked_id = tracked_armor.number;
   tracker_state = DETECTING;
+  target_type = "Normal";
 }
 
 void Tracker::update(const Armors::SharedPtr & armors_msg)
@@ -65,8 +66,7 @@ void Tracker::update(const Armors::SharedPtr & armors_msg)
     for (const auto & armor : armors_msg->armors) {
       auto p = armor.pose.position;
       Eigen::Vector3d position_vec(p.x, p.y, p.z);
-      // Difference of the current armor position and tracked armor's predicted
-      // position
+      // Difference of the current armor position and tracked armor's predicted position
       double position_diff = (predicted_position - position_vec).norm();
       if (position_diff < min_position_diff) {
         min_position_diff = position_diff;
@@ -101,43 +101,46 @@ void Tracker::update(const Armors::SharedPtr & armors_msg)
   if (target_state(8) < 0.2) {
     target_state(8) = 0.2;
     ekf.setState(target_state);
-  } else if (armors_msg->armors[0].number != "Outpost" && target_state(8) > 0.4) {
+  } else if (target_state(8) > 0.4) {
     target_state(8) = 0.4;
-    ekf.setState(target_state);
-  } else if (armors_msg->armors[0].number == "Outpost" && target_state(8) > 0.6) {
-    target_state(8) = 0.6;
     ekf.setState(target_state);
   }
 
-    // Tracking state machine
-    if (tracker_state == DETECTING) {
-      if (matched) {
-        detect_count_++;
-        if (detect_count_ > tracking_threshold_) {
-          detect_count_ = 0;
-          tracker_state = TRACKING;
-        }
-      } else {
+  // Set last_z and last_r
+  if (target_type != "Normal") {
+    last_z = target_state(2);
+    last_r = target_state(8);
+  }
+
+  // Tracking state machine
+  if (tracker_state == DETECTING) {
+    if (matched) {
+      detect_count_++;
+      if (detect_count_ > tracking_threshold_) {
         detect_count_ = 0;
+        tracker_state = TRACKING;
+      }
+    } else {
+      detect_count_ = 0;
+      tracker_state = LOST;
+    }
+  } else if (tracker_state == TRACKING) {
+    if (!matched) {
+      tracker_state = TEMP_LOST;
+      lost_count_++;
+    }
+  } else if (tracker_state == TEMP_LOST) {
+    if (!matched) {
+      lost_count_++;
+      if (lost_count_ > lost_threshold_) {
+        lost_count_ = 0;
         tracker_state = LOST;
       }
-    } else if (tracker_state == TRACKING) {
-      if (!matched) {
-        tracker_state = TEMP_LOST;
-        lost_count_++;
-      }
-    } else if (tracker_state == TEMP_LOST) {
-      if (!matched) {
-        lost_count_++;
-        if (lost_count_ > lost_threshold_) {
-          lost_count_ = 0;
-          tracker_state = LOST;
-        }
-      } else {
-        tracker_state = TRACKING;
-        lost_count_ = 0;
-      }
+    } else {
+      tracker_state = TRACKING;
+      lost_count_ = 0;
     }
+  }
 }
 
 void Tracker::initEKF(const Armor & a)
@@ -163,18 +166,26 @@ void Tracker::initEKF(const Armor & a)
 
 void Tracker::handleArmorJump(const Armor & a)
 {
+  std::string armor_type = a.armor_type;
+  std::string number = a.number;
+
+  // classify target type
+  if (armor_type == "Large" && (number == "3" || number == "4" || number == "5")) {
+    target_type = "Balance";
+  } else if (number == "Outpost") {
+    target_type = "Outpost";
+  } else {
+    target_type = "Normal";
+  }
+
   double last_yaw = target_state(3);
   double yaw = orientationToYaw(a.pose.orientation);
-  bool equal_height =
-    ((a.armor_type == LARGE) && (a.number == "3" || a.number == "4" || a.number == "5")) ||
-    a.number == "Outpost";
+
   if (abs(yaw - last_yaw) > 0.4) {
-    if (!equal_height) {
-      last_z = target_state(2);
-      std::swap(target_state(8), last_r);
-    }
+    last_z = target_state(2);
     target_state(2) = a.pose.position.z;
     target_state(3) = yaw;
+    std::swap(target_state(8), last_r);
     RCLCPP_WARN(rclcpp::get_logger("armor_processor"), "Armor jump!");
   }
 

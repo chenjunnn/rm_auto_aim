@@ -72,13 +72,13 @@ ArmorProcessorNode::ArmorProcessorNode(const rclcpp::NodeOptions & options)
   };
   // Q - process noise covariance matrix
   auto q_v = this->declare_parameter(
-    "kf.q", std::vector<double>{// xc  yc    zc    yaw   vxc   vyc   vzc   vyaw  r
+    "kf.q", std::vector<double>{//xc  yc    zc    yaw   vxc   vyc   vzc   vyaw  r
                                 1e-2, 1e-2, 1e-2, 2e-2, 5e-2, 5e-2, 1e-4, 4e-2, 1e-3});
   Eigen::DiagonalMatrix<double, 9> q;
   q.diagonal() << q_v[0], q_v[1], q_v[2], q_v[3], q_v[4], q_v[5], q_v[6], q_v[7], q_v[8];
   // R - measurement noise covariance matrix
   auto r_v = this->declare_parameter(
-    "kf.r", std::vector<double>{// xa  ya    za    yaw
+    "kf.r", std::vector<double>{//xa  ya    za    yaw
                                 1e-1, 1e-1, 1e-1, 2e-1});
   Eigen::DiagonalMatrix<double, 4> r;
   r.diagonal() << r_v[0], r_v[1], r_v[2], r_v[3];
@@ -102,8 +102,7 @@ ArmorProcessorNode::ArmorProcessorNode(const rclcpp::NodeOptions & options)
   tf2_filter_ = std::make_shared<tf2_filter>(
     armors_sub_, *tf2_buffer_, target_frame_, 10, this->get_node_logging_interface(),
     this->get_node_clock_interface(), std::chrono::duration<int>(1));
-  // Register a callback with tf2_ros::MessageFilter to be called when
-  // transforms are available
+  // Register a callback with tf2_ros::MessageFilter to be called when transforms are available
   tf2_filter_->registerCallback(&ArmorProcessorNode::armorsCallback, this);
 
   // Publisher
@@ -170,12 +169,9 @@ void ArmorProcessorNode::armorsCallback(
 
     if (tracker_->tracker_state == Tracker::DETECTING) {
       target_msg.tracking = false;
-    } else if (tracker_->tracker_state == Tracker::TRACKING) {
-      target_msg.tracking = true;
-      target_msg.id = tracker_->tracked_id;
-      tracker_->armor_type = armors_msg->armors[0].armor_type;
-      tracker_->number = armors_msg->armors[0].number;
-    } else if (tracker_->tracker_state == Tracker::TEMP_LOST) {
+    } else if (
+      tracker_->tracker_state == Tracker::TRACKING ||
+      tracker_->tracker_state == Tracker::TEMP_LOST) {
       target_msg.tracking = true;
       target_msg.id = tracker_->tracked_id;
     }
@@ -183,16 +179,6 @@ void ArmorProcessorNode::armorsCallback(
 
   last_time_ = time;
 
-  int target_type;
-  if (
-    tracker_->armor_type == LARGE &&
-    (tracker_->number == "3" || tracker_->number == "4" || tracker_->number == "5")) {
-    target_type = BALANCE;
-  } else if (tracker_->number == "Outpost") {
-    target_type = OUTPOST;
-  } else {
-    target_type = NORMAL;
-  }
   const auto state = tracker_->target_state;
   target_msg.position.x = state(0);
   target_msg.position.y = state(1);
@@ -205,7 +191,7 @@ void ArmorProcessorNode::armorsCallback(
   target_msg.radius_1 = state(8);
   target_msg.radius_2 = tracker_->last_r;
   target_msg.z_2 = tracker_->last_z;
-  target_msg.target_type = target_type;
+  target_msg.target_type = tracker_->target_type;
   target_pub_->publish(target_msg);
 
   publishMarkers(target_msg);
@@ -223,11 +209,11 @@ void ArmorProcessorNode::publishMarkers(const auto_aim_interfaces::msg::Target &
     double yaw = target_msg.yaw, r1 = target_msg.radius_1, r2 = target_msg.radius_2;
     double xc = target_msg.position.x, yc = target_msg.position.y, zc = target_msg.position.z;
     double z2 = target_msg.z_2;
-    auto target_type = target_msg.target_type;
+    std::string target_type = target_msg.target_type;
     position_marker_.action = visualization_msgs::msg::Marker::ADD;
     position_marker_.pose.position.x = xc;
     position_marker_.pose.position.y = yc;
-    position_marker_.pose.position.z = target_type == NORMAL ? (zc + z2) / 2 : zc;
+    position_marker_.pose.position.z = (zc + z2) / 2;
 
     linear_v_marker_.action = visualization_msgs::msg::Marker::ADD;
     linear_v_marker_.points.clear();
@@ -248,35 +234,27 @@ void ArmorProcessorNode::publishMarkers(const auto_aim_interfaces::msg::Target &
     armors_marker_.action = visualization_msgs::msg::Marker::ADD;
     armors_marker_.points.clear();
     geometry_msgs::msg::Point p_a;
-    if (target_type == NORMAL) {
-      bool use_1 = true;
-      for (size_t i = 0; i < 4; i++) {
-        double tmp_yaw = yaw + i * M_PI_2;
-        double r = use_1 ? r1 : r2;
-        p_a.x = xc - r * cos(tmp_yaw);
-        p_a.y = yc - r * sin(tmp_yaw);
-        p_a.z = use_1 ? zc : z2;
-        armors_marker_.points.emplace_back(p_a);
-        use_1 = !use_1;
-      }
-    } else if (target_type == BALANCE) {
-      for (size_t i = 0; i < 2; i++) {
-        double tmp_yaw = yaw + i * M_PI;
-        double r = r1;
-        p_a.x = xc - r * cos(tmp_yaw);
-        p_a.y = yc - r * sin(tmp_yaw);
-        p_a.z = zc;
-        armors_marker_.points.emplace_back(p_a);
-      }
-    } else if (target_type == OUTPOST) {
-      for (size_t i = 0; i < 3; i++) {
-        double tmp_yaw = yaw + i * M_PI * 2 / 3;
-        double r = r1;
-        p_a.x = xc - r * cos(tmp_yaw);
-        p_a.y = yc - r * sin(tmp_yaw);
-        p_a.z = zc;
-        armors_marker_.points.emplace_back(p_a);
-      }
+    size_t armor_amount;
+    double armor_angle;
+    if (target_type == "Normal") {
+      armor_amount = 4;
+      armor_angle = M_PI_2;
+    } else if (target_type == "Balance") {
+      armor_amount = 2;
+      armor_angle = M_PI;
+    } else if (target_type == "Outpost") {
+      armor_amount = 3;
+      armor_angle = M_PI * 2 / 3;
+    }
+    bool use_1 = true;
+    for (size_t i = 0; i < armor_amount; i++) {
+      double tmp_yaw = yaw + i * armor_angle;
+      double r = use_1 ? r1 : r2;
+      p_a.x = xc - r * cos(tmp_yaw);
+      p_a.y = yc - r * sin(tmp_yaw);
+      p_a.z = use_1 ? zc : z2;
+      armors_marker_.points.emplace_back(p_a);
+      use_1 = !use_1;
     }
   } else {
     position_marker_.action = visualization_msgs::msg::Marker::DELETE;
@@ -299,6 +277,6 @@ void ArmorProcessorNode::publishMarkers(const auto_aim_interfaces::msg::Target &
 #include "rclcpp_components/register_node_macro.hpp"
 
 // Register the component with class_loader.
-// This acts as a sort of entry point, allowing the component to be discoverable
-// when its library is being loaded into a running process.
+// This acts as a sort of entry point, allowing the component to be discoverable when its library
+// is being loaded into a running process.
 RCLCPP_COMPONENTS_REGISTER_NODE(rm_auto_aim::ArmorProcessorNode)

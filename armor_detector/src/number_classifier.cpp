@@ -57,7 +57,7 @@ void NumberClassifier::extractNumbers(const cv::Mat & src, std::vector<Armor> & 
 
     const int top_light_y = (warp_height - light_length) / 2 - 1;
     const int bottom_light_y = top_light_y + light_length;
-    const int warp_width = armor.armor_type == SMALL ? small_armor_width : large_armor_width;
+    const int warp_width = armor.armor_type == "Small" ? small_armor_width : large_armor_width;
     cv::Point2f target_vertices[4] = {
       cv::Point(0, bottom_light_y),
       cv::Point(0, top_light_y),
@@ -133,10 +133,10 @@ void NumberClassifier::classify(std::vector<Armor> & armors)
         }
 
         bool mismatch_armor_type = false;
-        if (armor.armor_type == LARGE) {
+        if (armor.armor_type == "Large") {
           mismatch_armor_type =
             armor.number == "Outpost" || armor.number == "2" || armor.number == "Guard";
-        } else if (armor.armor_type == SMALL) {
+        } else if (armor.armor_type == "Small") {
           mismatch_armor_type = armor.number == "1" || armor.number == "Base";
         }
         return mismatch_armor_type;

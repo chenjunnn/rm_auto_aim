@@ -20,8 +20,6 @@
 
 namespace rm_auto_aim
 {
-enum TargetType { NORMAL, BALANCE, OUTPOST };
-enum ArmorType { SMALL, LARGE };
 class Tracker
 {
 public:
@@ -50,11 +48,7 @@ public:
   // To store another pair of armors message
   double last_z, last_r;
 
-  // To store armor type
-  uint8_t armor_type;
-
-  // To store armor number
-  std::string number;
+  std::string target_type;
 
 private:
   void initEKF(const Armor & a);

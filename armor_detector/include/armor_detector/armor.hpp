@@ -15,8 +15,6 @@ namespace rm_auto_aim
 const int RED = 0;
 const int BLUE = 1;
 
-enum ArmorType { SMALL = 0, LARGE = 1 };
-
 struct Light : public cv::RotatedRect
 {
   Light() = default;
@@ -64,7 +62,7 @@ struct Armor
   float similarity;
   float confidence;
   std::string classfication_result;
-  ArmorType armor_type;
+  std::string armor_type;
 };
 
 }  // namespace rm_auto_aim
