@@ -201,6 +201,7 @@ void Tracker::handleArmorJump(const Armor & current_armor)
     target_state(1) = 0;                   // vxc
     target_state(2) = p.y + r * sin(yaw);  // yc
     target_state(3) = 0;                   // vyc
+    target_state(4) = p.z;                 // xz
     target_state(5) = 0;                   // vza
     RCLCPP_ERROR(rclcpp::get_logger("armor_tracker"), "State wrong!");
   }
