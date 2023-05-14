@@ -46,7 +46,7 @@ public:
   ExtendedKalmanFilter ekf;
 
   int tracking_thres;  // frame
-  double lost_thres;   // second
+  int lost_thres;   // second
 
   Armor tracked_armor;
   std::string tracked_id;
