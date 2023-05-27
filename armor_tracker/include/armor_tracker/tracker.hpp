@@ -76,8 +76,8 @@ private:
   double max_match_distance_;
   double max_match_yaw_diff_;
 
-  int detect_count_;
-  int lost_count_;
+  int detect_count_ = 0;
+  int lost_count_ = 0;
 
   double last_yaw_;
 };
